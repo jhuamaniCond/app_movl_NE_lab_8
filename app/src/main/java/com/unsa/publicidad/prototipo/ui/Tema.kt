@@ -16,9 +16,9 @@ import com.unsa.publicidad.prototipo.R
 
 /*
  * Alternativa 2 — "Cartografía".
- * Cada publicidad es un lugar: la lista vive bajo un mapa real del Perú y pines numerados.
+ * Cada publicidad es un lugar: el Maestro de Publicidad se puede ver como lista o como mapa del Perú.
  * Los nombres de lugares van en serif cursiva (como en los mapas) y la interfaz en sans.
- * El estado se lee en el pin: lleno = activo, hueco = inactivo, tachado = eliminado.
+ * El estado se indica con su letra: A = activo, I = inactivo, * = eliminado.
  */
 
 val Papel = Color(0xFFEDF1EC)
@@ -29,6 +29,8 @@ val Pin = Color(0xFFB3261E)
 val Gris = Color(0xFF66737D)
 val Linea = Color(0xFFCAD3CC)
 val Asa = Color(0xFFD5DBD6)
+val Verde = Color(0xFF2E7D4F)   // estado A
+val Ambar = Color(0xFFB26A00)   // estado I
 
 @OptIn(ExperimentalTextApi::class)
 private fun variable(res: Int, peso: Int) = Font(

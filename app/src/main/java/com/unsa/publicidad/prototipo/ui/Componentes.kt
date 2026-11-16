@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,18 +23,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.unsa.publicidad.prototipo.datos.Estado
 import com.unsa.publicidad.prototipo.datos.Orden
 import com.unsa.publicidad.prototipo.datos.Registro
 import com.unsa.publicidad.prototipo.datos.Tabla
-import com.unsa.publicidad.prototipo.datos.numeroDe
 
 /** Buscador flotante sobre el mapa. La flecha es "Salir". */
 @Composable
@@ -81,48 +83,142 @@ fun SelectorOrden(orden: Orden, alCambiar: (Orden) -> Unit) {
     }
 }
 
-/** Leyenda: el estado se lee en el pin. */
+/** Color de cada estado: A verde, I ámbar, * gris. */
+fun colorEstado(estado: Char) = when (estado) {
+    Estado.ACTIVO -> Verde
+    Estado.INACTIVO -> Ambar
+    else -> Gris
+}
+
+/**
+ * El estado del registro con su letra, tal como se guarda en la tabla:
+ * A = activo (lleno), I = inactivo (borde), * = eliminado (gris).
+ */
+@Composable
+fun LetraEstado(estado: Char, modifier: Modifier = Modifier, tam: Dp = 30.dp) {
+    val color = colorEstado(estado)
+    val lleno = estado == Estado.ACTIVO
+    Box(
+        modifier.size(tam).clip(RoundedCornerShape(tam / 4))
+            .background(if (lleno) color else color.copy(alpha = .10f))
+            .border(1.5.dp, color, RoundedCornerShape(tam / 4))
+            .semantics { contentDescription = "Estado ${Estado.texto(estado)}" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            estado.toString(),
+            style = sans((tam.value * .5f).toInt().coerceAtLeast(9), 700, if (lleno) Color.White else color),
+        )
+    }
+}
+
+/** Leyenda de los estados: A activo · I inactivo · * eliminado. */
 @Composable
 fun Leyenda() {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(Estado.ACTIVO to "activo", Estado.INACTIVO to "inactivo", Estado.ELIMINADO to "eliminado").forEach { (e, s) ->
-            PinMapa("", e, tam = 18.dp)
+            LetraEstado(e, tam = 20.dp)
             Text(s, style = sans(13, 400, Gris)); Spacer(Modifier.width(6.dp))
         }
     }
 }
 
-/** Fila de la lista: pin + nombre + subtítulo. */
+/**
+ * Tarjeta de un registro con sus botones dentro: Modificar, Inactivar / Reactivar y Eliminar.
+ * Un registro eliminado (*) queda de solo lectura y no muestra botones.
+ *
+ * @param lineas  datos que se muestran bajo el nombre (cliente, ubicación, uso...)
+ * @param resaltada  true mientras el registro se está modificando en el panel inferior
+ */
 @Composable
-fun FilaLista(codigo: String, estado: Char, titulo: String, subtitulo: String, serif: Boolean = false, alTocar: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = alTocar).padding(vertical = 8.dp, horizontal = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
+fun TarjetaRegistro(
+    codigo: String, estado: Char, titulo: String, lineas: List<String>,
+    serif: Boolean = false, resaltada: Boolean = false, modifier: Modifier = Modifier,
+    alModificar: () -> Unit, alInactivar: () -> Unit, alReactivar: () -> Unit, alEliminar: () -> Unit,
+) {
+    val eliminado = estado == Estado.ELIMINADO
+    Column(
+        modifier.fillMaxWidth().padding(vertical = 5.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (resaltada) Papel else Color.White)
+            .border(if (resaltada) 2.dp else 1.dp, if (resaltada) Tinta else Linea, RoundedCornerShape(16.dp))
+            .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = if (eliminado) 12.dp else 8.dp),
     ) {
-        PinMapa(numeroDe(codigo), estado)
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                titulo, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = (if (serif) lugar(18) else sans(16, 600)).let {
-                    if (estado == Estado.ELIMINADO) it.copy(color = Gris) else it
-                },
-            )
-            Text(subtitulo, style = sans(13, 400, Gris), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.Top) {
+            LetraEstado(estado, Modifier.padding(top = 2.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    titulo, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    style = (if (serif) lugar(19) else sans(17, 700)).let { if (eliminado) it.copy(color = Gris) else it },
+                )
+                lineas.forEach { Text(it, style = sans(13, 400, Gris), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(codigo, style = sans(13, 700, if (eliminado) Gris else Pin))
+        }
+        if (eliminado) {
+            Text("Eliminado (*): solo lectura", style = sans(12, 600, Gris), modifier = Modifier.padding(start = 42.dp, top = 6.dp))
+        } else {
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = Linea)
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                BotonTarjeta("Modificar", Icons.Default.Edit, Tinta, alModificar)
+                if (estado == Estado.ACTIVO) BotonTarjeta("Inactivar", Icons.Default.Lock, Ambar, alInactivar)
+                else BotonTarjeta("Reactivar", Icons.Default.Refresh, Verde, alReactivar)
+                BotonTarjeta("Eliminar", Icons.Default.Delete, Pin, alEliminar)
+            }
         }
     }
 }
 
-/** Etiqueta con el estado del registro. */
+/** Botón pequeño dentro de una tarjeta. */
+@Composable
+private fun RowScope.BotonTarjeta(texto: String, icono: ImageVector, color: Color, alTocar: () -> Unit) {
+    TextButton(
+        alTocar, Modifier.weight(1f).height(38.dp),
+        contentPadding = PaddingValues(horizontal = 4.dp),
+        colors = ButtonDefaults.textButtonColors(contentColor = color),
+    ) {
+        Icon(icono, null, tint = color, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(texto, style = sans(14, 700, color), maxLines = 1)
+    }
+}
+
+/** Cambiar de vista en el Maestro de Publicidad: Lista | Mapa. */
+@Composable
+fun SelectorVista(enMapa: Boolean, alCambiar: (Boolean) -> Unit) {
+    Row(Modifier.clip(RoundedCornerShape(18.dp)).background(Papel).padding(3.dp)) {
+        listOf(false to "Lista", true to "Mapa").forEach { (mapa, texto) ->
+            val sel = mapa == enMapa
+            Row(
+                Modifier.clip(RoundedCornerShape(15.dp)).background(if (sel) Tinta else Color.Transparent)
+                    .clickable { alCambiar(mapa) }.padding(horizontal = 10.dp, vertical = 6.dp)
+                    .semantics { contentDescription = "Ver como $texto" },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    if (mapa) Icons.Default.Place else Icons.AutoMirrored.Filled.List, null,
+                    tint = if (sel) Color.White else Tinta, modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(texto, style = sans(13, if (sel) 700 else 600, if (sel) Color.White else Tinta))
+            }
+        }
+    }
+}
+
+/** Etiqueta con el estado del registro: letra + texto. */
 @Composable
 fun ChipEstado(estado: Char) {
     Row(
         Modifier.clip(RoundedCornerShape(14.dp)).background(Papel).padding(start = 4.dp, end = 10.dp, top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PinMapa("", estado, tam = 16.dp)
+        LetraEstado(estado, tam = 18.dp)
         Spacer(Modifier.width(6.dp))
-        Text("$estado · ${Estado.texto(estado)}", style = sans(13, 700, if (estado == Estado.ELIMINADO) Gris else Tinta))
+        Text(Estado.texto(estado), style = sans(13, 700, colorEstado(estado)))
     }
 }
 
@@ -238,19 +334,5 @@ fun HojaSeleccion(
                 }
             }
         }
-    }
-}
-
-/** Botón de acción de la barra inferior del detalle. */
-@Composable
-fun RowScope.BotonAccion(texto: String, icono: androidx.compose.ui.graphics.vector.ImageVector, color: Color = Tinta, alTocar: () -> Unit) {
-    OutlinedButton(
-        alTocar, Modifier.weight(1f).height(48.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = .5f)),
-        contentPadding = PaddingValues(horizontal = 8.dp),
-    ) {
-        Icon(icono, null, tint = color, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(texto, style = sans(15, 700, color), maxLines = 1)
     }
 }

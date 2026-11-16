@@ -22,9 +22,8 @@ import kotlinx.coroutines.launch
 /** Rutas de navegación de la app. */
 sealed interface Ruta {
     data object Inicio : Ruta
+    /** Mantenimiento completo de la tabla: la Adición y la Modificación se hacen en la misma pantalla. */
     data class Lista(val tabla: Tabla) : Ruta
-    /** codigo = null significa Adición de un registro nuevo. */
-    data class Detalle(val tabla: Tabla, val codigo: String?) : Ruta
 }
 
 class MainActivity : ComponentActivity() {
@@ -64,14 +63,6 @@ fun App(onSalir: () -> Unit) {
                 BackHandler { volver() }
                 PantallaLista(
                     db, version, r.tabla,
-                    alAbrir = { ir(Ruta.Detalle(r.tabla, it)) },
-                    alAdicionar = { ir(Ruta.Detalle(r.tabla, null)) },
-                    alSalir = ::volver,
-                )
-            }
-            is Ruta.Detalle -> key(r, pila.size) {
-                PantallaDetalle(
-                    db, version, r.tabla, r.codigo,
                     alCambiarDatos = { version++ },
                     avisar = ::avisar,
                     alSalir = ::volver,

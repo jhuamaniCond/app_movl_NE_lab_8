@@ -24,6 +24,8 @@ enum class Tabla(
     val articuloUn get() = if (femenino) "una" else "un"
     /** "Nuevo cliente" / "Nueva zona" */
     val nuevoTitulo get() = (if (femenino) "Nueva " else "Nuevo ") + singular
+    /** Orden con el que se abre la lista: Clientes por nombre (se busca más por nombre), el resto por código. */
+    val ordenDefecto get() = if (this == CLIENTE) Orden.NOMBRE else Orden.CODIGO
 
     companion object {
         val referenciales = listOf(CLIENTE, DEPARTAMENTO, ZONA)

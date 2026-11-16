@@ -1,9 +1,15 @@
 # Prototipo – Módulo Publicidad (Alternativa 2 "Cartografía")
 
 App Android nativa (Kotlin + Jetpack Compose + SQLite) para el Lab 08 de Negocios Electrónicos – M-Business.
-Implementa el layout ganador (alternativa 2): en el Maestro de Publicidad la lista vive bajo un mapa real del Perú y
-pines numerados; Inicio y las tablas referenciales se muestran sin mapa, a pantalla completa.
-El estado se lee en el pin (lleno = activo, hueco = inactivo, tachado = eliminado).
+Implementa el layout ganador (alternativa 2), ajustado con la retroalimentación del docente:
+
+- Todo el mantenimiento de cada tabla se hace en **una sola pantalla**: Adicionar y Modificar abren el formulario
+  en la **mitad inferior**, con la lista a la vista arriba (ya no hay pantalla de detalle aparte).
+- Cada registro es una **tarjeta con sus botones dentro**: Modificar, Inactivar / Reactivar y Eliminar.
+- El estado se indica con su letra: **A** (activo, verde), **I** (inactivo, ámbar), **\*** (eliminado, gris).
+- **Clientes** abre ordenado por **Nombre** (es el dato con el que más se trabaja); las demás tablas, por código.
+- El **Maestro de Publicidad** se muestra como las otras tablas; el mapa del Perú es un botón de
+  **cambio de vista** (Lista | Mapa).
 
 ## Mapa
 
@@ -11,8 +17,9 @@ El estado se lee en el pin (lleno = activo, hueco = inactivo, tachado = eliminad
   dibujados con Canvas desde `res/raw/mapa_peru.txt`: funciona sin internet y sin API de pago.
 - Se desplaza con un dedo y se acerca con dos dedos o con doble toque. Los botones **+ / −**
   acercan y alejan, **Perú** muestra todo el país y el botón del pin vuelve a encuadrar las publicidades.
-- La hoja blanca de abajo (lista del Maestro de Publicidad) se arrastra desde su cabecera: abajo deja ver casi todo
-  el mapa, arriba deja ver casi toda la lista; tocar el asa alterna entre abajo y la posición inicial.
+- Se abre con el botón **Mapa** del Maestro de Publicidad. Cada pin lleva el número de la publicidad y la letra
+  de su estado; al tocarlo aparece su tarjeta con los botones Modificar / Inactivar / Eliminar.
+- La búsqueda también filtra los pines.
 - Cada departamento de la tabla se ubica por su nombre ("Apurímac", "Lima", "Cusco"...).
   Si el nombre no es de un departamento del Perú, aparece en el mar como "(sin ubicar)".
 - Fuentes de datos: límites departamentales del INEI vía
@@ -35,15 +42,15 @@ y la maestra tiene claves foráneas reales (`PRAGMA foreign_keys = ON`).
 
 | Requisito | Implementación |
 |---|---|
-| Adición | botón **Adicionar**; el código se genera solo (P007, C006, D08, Z06) y el estado queda en `A` |
-| Modificación | botón **Modificar** en el detalle → modo edición |
-| Eliminación | botón **Eliminar** (con confirmación) → estado `*`; queda de solo lectura. Si un referencial está en uso por alguna publicidad, no se deja eliminar |
-| Inactivar / Reactivar | botones **Inactivar** (con confirmación) → `I` y **Reactivar** → `A` |
-| Buscar | buscador en la parte superior de cada lista (por nombre o código; en la maestra también calle o cliente) |
-| Cancelar | ✕ en modo edición (descarta cambios) y "Cancelar" en la consulta de selección |
+| Adición | botón **Adicionar** → formulario en la mitad inferior de la misma pantalla; el código se genera solo (P007, C006, D08, Z06) y el estado queda en `A` |
+| Modificación | botón **Modificar** dentro de la tarjeta → mismo formulario inferior, con la tarjeta resaltada |
+| Eliminación | botón **Eliminar** de la tarjeta (con confirmación) → estado `*`; queda de solo lectura. Si un referencial está en uso por alguna publicidad, no se deja eliminar |
+| Inactivar / Reactivar | botones **Inactivar** (con confirmación) → `I` y **Reactivar** → `A`, dentro de la tarjeta |
+| Buscar | buscador en la parte superior de cada lista (Clientes por nombre; en la maestra también calle o cliente) |
+| Cancelar | **Cancelar** / ✕ en el formulario inferior (descarta cambios) y "Cancelar" en la consulta de selección |
 | Guardar | botón **Guardar** con validación (campos obligatorios, nombres repetidos) |
-| Salir | flecha ← en listas y detalle; botón salir en el inicio |
-| Orden por defecto | por **código**; interruptor Código / Nombre (opcional) |
+| Salir | flecha ← en las listas; botón salir en el inicio |
+| Orden por defecto | Clientes por **nombre**; Publicidad, Departamento y Zona por **código**; interruptor Código / Nombre (opcional) |
 | Consulta de tabla referencial | en la maestra, al tocar Cliente / Departamento / Zona se abre una hoja con **solo activos en orden alfabético**; "Cargar …" carga el código, "Cancelar" vuelve sin cambios |
 | Opcional: otro orden | interruptor Código / Nombre en todas las listas |
 | Opcional: búsqueda y selección | buscar → tocar el registro → modificar / inactivar / reactivar / eliminar |
@@ -52,17 +59,17 @@ y la maestra tiene claves foráneas reales (`PRAGMA foreign_keys = ON`).
 
 ```
 app/src/main/java/com/unsa/publicidad/prototipo/
-  MainActivity.kt          navegación (Inicio → Lista → Detalle) y avisos
+  MainActivity.kt          navegación (Inicio → Lista) y avisos
   datos/Modelos.kt         Tabla, Estado, Registro, Publicidad, Orden
   datos/BaseDatos.kt       SQLiteOpenHelper: esquema, datos iniciales y operaciones
   ui/Tema.kt               colores y tipografías (Source Serif cursiva para lugares, Source Sans)
   ui/Mapa.kt               mapa del Perú con desplazamiento y zoom, nombres de departamento y pines
+  ui/Componentes.kt        buscador, selectores de orden y de vista, letra de estado A/I/*, tarjeta con botones,
+                           campos y hoja de selección
+  ui/PantallaInicio.kt     acceso a las 4 tablas
+  ui/PantallaLista.kt      mantenimiento de una tabla: tarjetas (o mapa en la maestra) + formulario inferior
+  ui/PanelFormulario.kt    formulario de Adición / Modificación en la mitad inferior de la pantalla
 res/raw/mapa_peru.txt      coordenadas de departamentos, países vecinos y lagos (lon,lat)
-  ui/HojaMapa.kt           mapa a pantalla completa con la hoja inferior que se arrastra
-  ui/Componentes.kt        buscador, selector de orden, leyenda, campos, hoja de selección
-  ui/PantallaInicio.kt     acceso a las 4 tablas (sin mapa)
-  ui/PantallaLista.kt      lista de una tabla (la maestra bajo el mapa; las referenciales sin mapa)
-  ui/PantallaDetalle.kt    detalle / adición / modificación y acciones de estado (mini mapa solo en la maestra)
 ```
 
 ## Compilar y ejecutar

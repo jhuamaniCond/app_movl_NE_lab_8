@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Icon
@@ -161,6 +162,7 @@ private class Camara {
     }
 
     fun fijar(s: Float, d: Offset) {
+        if (!(s > 0f && s.isFinite() && d.x.isFinite() && d.y.isFinite())) return   // nunca escala 0 ni NaN
         val centro = (vista.center - d) / s
         val c = Offset(centro.x.coerceIn(limites.left, limites.right), centro.y.coerceIn(limites.top, limites.bottom))
         escala = s
@@ -176,6 +178,7 @@ private class Camara {
     suspend fun animarA(objetivo: Pair<Float, Offset>) {
         val (s1, d1) = objetivo
         val s0 = escala
+        if (!(s0 > 0f && s1 > 0f)) return fijar(s1, d1)
         val c0 = (vista.center - desp) / s0
         val c1 = (vista.center - d1) / s1
         animate(0f, 1f, animationSpec = tween(450)) { t, _ ->
@@ -206,25 +209,27 @@ private fun desplazamientoPin(indice: Int): Pair<Int, Int> {
 /** Un pin ya ubicado: punto del mundo donde se ancla y desplazamiento en dp. */
 private class PinUbicado(val publicidad: Publicidad, val ancla: Offset, val dx: Int, val dy: Int)
 
-/** Pin numerado: lleno = activo, hueco = inactivo, tachado = eliminado. */
+/**
+ * Pin numerado con la letra del estado en la esquina (A activo, I inactivo, * eliminado).
+ * El color del pin acompaña a la letra: verde = A, ámbar = I, gris = *.
+ */
 @Composable
-fun PinMapa(numero: String, estado: Char, modifier: Modifier = Modifier, tam: Dp = 30.dp) {
+fun PinMapa(numero: String, estado: Char, modifier: Modifier = Modifier, tam: Dp = 30.dp, alTocar: (() -> Unit)? = null) {
+    val color = colorEstado(estado)
     Box(modifier.size(tam), contentAlignment = Alignment.Center) {
         Box(
             Modifier.size(tam - 2.dp).clip(CircleShape)
-                .background(if (estado == Estado.ACTIVO) Pin else Color.White)
-                .border(2.dp, if (estado == Estado.ELIMINADO) Gris else Pin, CircleShape),
+                .then(if (alTocar != null) Modifier.clickable(onClick = alTocar) else Modifier)
+                .background(if (estado == Estado.ACTIVO) color else Color.White)
+                .border(2.dp, color, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 numero,
-                style = sans(if (numero.length > 2) 10 else 12, 700,
-                    when (estado) { Estado.ACTIVO -> Color.White; Estado.ELIMINADO -> Gris; else -> Pin }),
+                style = sans(if (numero.length > 2) 10 else 12, 700, if (estado == Estado.ACTIVO) Color.White else color),
             )
         }
-        if (estado == Estado.ELIMINADO) Canvas(Modifier.size(tam - 2.dp)) {
-            drawLine(Gris, Offset(4f, size.height - 4f), Offset(size.width - 4f, 4f), strokeWidth = 4f)
-        }
+        LetraEstado(estado, Modifier.align(Alignment.TopEnd).offset(6.dp, (-6).dp).background(Color.White, RoundedCornerShape(4.dp)), tam = 15.dp)
     }
 }
 
@@ -288,7 +293,11 @@ fun Mapa(
         val ancho = constraints.maxWidth.toFloat()
         val alto = constraints.maxHeight.toFloat()
         val camara = remember { Camara() }
-        val vista = Rect(0f, alto * margenSuperior, ancho, alto - with(densidad) { margenInferior.toPx() })
+        // Con la hoja subida del todo la parte visible del mapa mide 0 px: se le da un alto mínimo
+        // para que la escala nunca sea 0 (dividir entre ella dejaba los pines en NaN y cerraba la app).
+        val vistaArriba = alto * margenSuperior
+        val vistaAbajo = max(alto - with(densidad) { margenInferior.toPx() }, vistaArriba + with(densidad) { 120.dp.toPx() })
+        val vista = Rect(0f, vistaArriba, ancho, vistaAbajo)
         // si la hoja inferior sube o baja, lo que estaba al centro de la parte visible sigue al centro
         if (camara.escala != 0f && vista != camara.vista) camara.desp += vista.center - camara.vista.center
         camara.vista = vista
@@ -408,8 +417,9 @@ fun Mapa(
                         val c = camara.aPantalla(u.ancla)
                         IntOffset((c.x + (u.dx - 15).dp.toPx()).roundToInt(), (c.y + (u.dy - 15).dp.toPx()).roundToInt())
                     }
-                    .semantics { contentDescription = "Pin ${p.codigo}" }
-                    .then(if (alTocarPin != null) Modifier.clip(CircleShape).clickable { alTocarPin(p) } else Modifier),
+                    .semantics { contentDescription = "Pin ${p.codigo}" },
+                // el clic va en el círculo: así no se recorta la letra del estado de la esquina
+                alTocar = alTocarPin?.let { { it(p) } },
             )
         }
 

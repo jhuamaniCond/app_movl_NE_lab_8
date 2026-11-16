@@ -22,7 +22,7 @@ import com.unsa.publicidad.prototipo.datos.BaseDatos
 import com.unsa.publicidad.prototipo.datos.Estado
 import com.unsa.publicidad.prototipo.datos.Tabla
 
-/** Pantalla inicial: acceso al mantenimiento de las 4 tablas (el mapa está dentro del Maestro de Publicidad). */
+/** Pantalla inicial: acceso al mantenimiento de las 4 tablas (el mapa es una vista dentro del Maestro de Publicidad). */
 @Composable
 fun PantallaInicio(db: BaseDatos, version: Int, alAbrir: (Tabla) -> Unit, alSalir: () -> Unit) {
     val publicidades = remember(version) { db.publicidades() }
@@ -33,31 +33,27 @@ fun PantallaInicio(db: BaseDatos, version: Int, alAbrir: (Tabla) -> Unit, alSali
         }
     }
 
-    MapaConHoja(
-        clave = "inicio", topeInicial = 330.dp, reservaSuperior = 80.dp,
-        mapa = null,   // el mapa se ve solo dentro del Maestro de Publicidad
-        sobreMapa = {
-            // rótulo superior (en lugar del buscador)
-            Row(
-                Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth()
-                    .shadow(6.dp, RoundedCornerShape(26.dp)).clip(RoundedCornerShape(26.dp)).background(Color.White)
-                    .padding(start = 20.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Publicidad exterior", style = sans(18, 700))
-                    Text("Soluciones Móviles S.A.C. · Prototipo M-Business", style = sans(12, 400, Gris))
-                }
-                IconButton(alSalir) { Icon(Icons.AutoMirrored.Filled.ExitToApp, "Salir de la aplicación", tint = Tinta) }
+    Column(Modifier.fillMaxSize().background(Color.White)) {
+        // rótulo superior
+        Row(
+            Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth()
+                .shadow(6.dp, RoundedCornerShape(26.dp)).clip(RoundedCornerShape(26.dp)).background(Color.White)
+                .padding(start = 20.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Publicidad exterior", style = sans(18, 700))
+                Text("Soluciones Móviles S.A.C. · Prototipo M-Business", style = sans(12, 400, Gris))
             }
-        },
-        cabecera = {
-            Text("Mantenimiento", style = sans(22, 700), modifier = Modifier.padding(top = 2.dp))
+            IconButton(alSalir) { Icon(Icons.AutoMirrored.Filled.ExitToApp, "Salir de la aplicación", tint = Tinta) }
+        }
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
+                .padding(horizontal = 20.dp),
+        ) {
+            Text("Mantenimiento", style = sans(22, 700), modifier = Modifier.padding(top = 8.dp))
             Text("Cuatro tablas relacionadas. Elija una para darle mantenimiento.", style = sans(14, 400, Gris))
             Spacer(Modifier.height(8.dp))
-        },
-    ) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
             Tabla.entries.forEach { t ->
                 val (total, activos) = conteos.getValue(t)
                 FilaTabla(t, total, activos) { alAbrir(t) }
