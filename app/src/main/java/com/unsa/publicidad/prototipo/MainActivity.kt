@@ -70,7 +70,8 @@ fun App(onSalir: () -> Unit) {
             }
         }
         SnackbarHost(
-            avisos, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp),
+            // arriba, para no tapar la botonera de la ficha inferior
+            avisos, Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 64.dp),
         ) { datos ->
             Snackbar(datos, containerColor = Tinta, contentColor = Color.White)
         }

@@ -17,7 +17,7 @@ import android.database.sqlite.SQLiteOpenHelper
  * Todas las tablas tienen el dato Estado de Registro (A, I, *). La eliminación es lógica:
  * el registro queda con '*' y ya no se puede modificar.
  */
-class BaseDatos(context: Context) : SQLiteOpenHelper(context, "publicidad.db", null, 1) {
+class BaseDatos(context: Context) : SQLiteOpenHelper(context, "publicidad.db", null, VERSION) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -47,40 +47,54 @@ class BaseDatos(context: Context) : SQLiteOpenHelper(context, "publicidad.db", n
         sembrar(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, anterior: Int, nueva: Int) = Unit
+    /**
+     * Versión 2: los códigos pasan a ser solo números (C001 -> 001, Z06 -> 06), como pidió el docente.
+     * Se quita la letra en las 4 tablas y en las referencias de la maestra, sin perder datos.
+     * Las claves foráneas se revisan al final de la transacción (defer_foreign_keys) para poder
+     * cambiar a la vez el código del referencial y el de las publicidades que lo usan.
+     */
+    override fun onUpgrade(db: SQLiteDatabase, anterior: Int, nueva: Int) {
+        if (anterior < 2) {
+            db.execSQL("PRAGMA defer_foreign_keys = ON")
+            fun quitarLetra(tabla: String, columna: String) =
+                db.execSQL("UPDATE $tabla SET $columna = substr($columna, 2) WHERE $columna GLOB '[A-Za-z]*'")
+            Tabla.entries.forEach { quitarLetra(it.sql, "codigo") }
+            listOf("cliente", "departamento", "zona").forEach { quitarLetra("publicidad", it) }
+        }
+    }
 
     /** Datos iniciales para que el prototipo no arranque vacío. */
     private fun sembrar(db: SQLiteDatabase) {
         fun ref(t: Tabla, c: String, n: String, e: Char = 'A') =
             db.insert(t.sql, null, ContentValues().apply { put("codigo", c); put("nombre", n); put("estado", e.toString()) })
 
-        ref(Tabla.CLIENTE, "C001", "Lácteos del Sur S.A.")
-        ref(Tabla.CLIENTE, "C002", "Ferretería El Misti")
-        ref(Tabla.CLIENTE, "C003", "Inversiones Chachani")
-        ref(Tabla.CLIENTE, "C004", "Textil Colca E.I.R.L.", 'I')
-        ref(Tabla.CLIENTE, "C005", "Panificadora Yanahuara")
+        ref(Tabla.CLIENTE, "001", "Lácteos del Sur S.A.")
+        ref(Tabla.CLIENTE, "002", "Ferretería El Misti")
+        ref(Tabla.CLIENTE, "003", "Inversiones Chachani")
+        ref(Tabla.CLIENTE, "004", "Textil Colca E.I.R.L.", 'I')
+        ref(Tabla.CLIENTE, "005", "Panificadora Yanahuara")
 
-        ref(Tabla.DEPARTAMENTO, "D01", "Arequipa")
-        ref(Tabla.DEPARTAMENTO, "D02", "Tacna")
-        ref(Tabla.DEPARTAMENTO, "D03", "Moquegua")
-        ref(Tabla.DEPARTAMENTO, "D04", "Puno")
-        ref(Tabla.DEPARTAMENTO, "D05", "Cusco")
-        ref(Tabla.DEPARTAMENTO, "D06", "Apurímac", 'I')
-        ref(Tabla.DEPARTAMENTO, "D07", "Ica")
+        ref(Tabla.DEPARTAMENTO, "01", "Arequipa")
+        ref(Tabla.DEPARTAMENTO, "02", "Tacna")
+        ref(Tabla.DEPARTAMENTO, "03", "Moquegua")
+        ref(Tabla.DEPARTAMENTO, "04", "Puno")
+        ref(Tabla.DEPARTAMENTO, "05", "Cusco")
+        ref(Tabla.DEPARTAMENTO, "06", "Apurímac", 'I')
+        ref(Tabla.DEPARTAMENTO, "07", "Ica")
 
-        ref(Tabla.ZONA, "Z01", "Centro")
-        ref(Tabla.ZONA, "Z02", "Rural")
-        ref(Tabla.ZONA, "Z03", "Carretera")
-        ref(Tabla.ZONA, "Z04", "Residencial")
-        ref(Tabla.ZONA, "Z05", "Industrial", 'I')
+        ref(Tabla.ZONA, "01", "Centro")
+        ref(Tabla.ZONA, "02", "Rural")
+        ref(Tabla.ZONA, "03", "Carretera")
+        ref(Tabla.ZONA, "04", "Residencial")
+        ref(Tabla.ZONA, "05", "Industrial", 'I')
 
         listOf(
-            Publicidad("P001", "Panel Av. Ejército", "C001", "D01", "Z01", "Av. Ejército 710", 'A'),
-            Publicidad("P002", "Valla Variante de Uchumayo", "C003", "D01", "Z03", "Km 8 Variante", 'A'),
-            Publicidad("P003", "Paleta Plaza de Armas", "C002", "D02", "Z01", "Calle San Martín 120", 'I'),
-            Publicidad("P004", "Banner Feria Puno", "C005", "D04", "Z01", "Jr. Lima 455", 'A'),
-            Publicidad("P005", "Valla Panamericana Sur", "C001", "D03", "Z03", "Km 1145 Panam. Sur", 'A'),
-            Publicidad("P006", "Mural Mercado Rural", "C004", "D02", "Z02", "Av. Collpa s/n", '*'),
+            Publicidad("001", "Panel Av. Ejército", "001", "01", "01", "Av. Ejército 710", 'A'),
+            Publicidad("002", "Valla Variante de Uchumayo", "003", "01", "03", "Km 8 Variante", 'A'),
+            Publicidad("003", "Paleta Plaza de Armas", "002", "02", "01", "Calle San Martín 120", 'I'),
+            Publicidad("004", "Banner Feria Puno", "005", "04", "01", "Jr. Lima 455", 'A'),
+            Publicidad("005", "Valla Panamericana Sur", "001", "03", "03", "Km 1145 Panam. Sur", 'A'),
+            Publicidad("006", "Mural Mercado Rural", "004", "02", "02", "Av. Collpa s/n", '*'),
         ).forEach { db.insert("publicidad", null, valores(it)) }
     }
 
@@ -154,14 +168,14 @@ class BaseDatos(context: Context) : SQLiteOpenHelper(context, "publicidad.db", n
         writableDatabase.update(t.sql, ContentValues().apply { put("estado", estado.toString()) }, "codigo = ?", arrayOf(codigo))
     }
 
-    /** Siguiente código libre: P007, C006, D08, Z06... */
+    /** Siguiente código libre, solo números: 007 (publicidad), 006 (cliente), 08 (departamento), 06 (zona)... */
     fun siguienteCodigo(t: Tabla): String {
         val max = readableDatabase.rawQuery("SELECT codigo FROM ${t.sql}", null).use { c ->
             var m = 0
             while (c.moveToNext()) m = maxOf(m, c.getString(0).filter { it.isDigit() }.toIntOrNull() ?: 0)
             m
         }
-        return t.prefijo + (max + 1).toString().padStart(t.digitos, '0')
+        return (max + 1).toString().padStart(t.digitos, '0')
     }
 
     private fun leer(c: Cursor) = Publicidad(
@@ -174,6 +188,8 @@ class BaseDatos(context: Context) : SQLiteOpenHelper(context, "publicidad.db", n
     }
 
     companion object {
+        const val VERSION = 2
+
         fun campo(p: Publicidad, t: Tabla) = when (t) {
             Tabla.CLIENTE -> p.cliente
             Tabla.DEPARTAMENTO -> p.departamento

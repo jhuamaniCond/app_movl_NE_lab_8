@@ -79,7 +79,7 @@ private fun FilaTabla(t: Tabla, total: Int, activos: Int, alTocar: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(40.dp).clip(CircleShape).background(if (maestra) Pin else Tinta), contentAlignment = Alignment.Center) {
-            Text(t.prefijo, style = sans(17, 700, Color.White))
+            Text(t.inicial, style = sans(17, 700, Color.White))
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

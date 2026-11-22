@@ -24,11 +24,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -37,7 +39,7 @@ import com.unsa.publicidad.prototipo.datos.Orden
 import com.unsa.publicidad.prototipo.datos.Registro
 import com.unsa.publicidad.prototipo.datos.Tabla
 
-/** Buscador flotante sobre el mapa. La flecha es "Salir". */
+/** Buscador superior (función Buscar). La flecha es "Salir". */
 @Composable
 fun BuscadorFlotante(texto: String, alCambiar: (String) -> Unit, pista: String, alSalir: () -> Unit, modifier: Modifier = Modifier) {
     Row(
@@ -124,65 +126,98 @@ fun Leyenda() {
 }
 
 /**
- * Tarjeta de un registro con sus botones dentro: Modificar, Inactivar / Reactivar y Eliminar.
- * Un registro eliminado (*) queda de solo lectura y no muestra botones.
+ * Tarjeta de un registro en la lista. Al tocarla se elige y se carga en la ficha de abajo,
+ * donde están los botones de las funciones. Un registro eliminado (*) aparece tachado.
  *
- * @param lineas  datos que se muestran bajo el nombre (cliente, ubicación, uso...)
- * @param resaltada  true mientras el registro se está modificando en el panel inferior
+ * @param lineas      datos que se muestran bajo el nombre (cliente, ubicación, uso...)
+ * @param elegida     true si es el registro cargado en la ficha
+ * @param editando    true mientras se modifica en la ficha
  */
 @Composable
 fun TarjetaRegistro(
     codigo: String, estado: Char, titulo: String, lineas: List<String>,
-    serif: Boolean = false, resaltada: Boolean = false, modifier: Modifier = Modifier,
-    alModificar: () -> Unit, alInactivar: () -> Unit, alReactivar: () -> Unit, alEliminar: () -> Unit,
+    serif: Boolean = false, elegida: Boolean = false, editando: Boolean = false,
+    modifier: Modifier = Modifier, alTocar: () -> Unit,
 ) {
     val eliminado = estado == Estado.ELIMINADO
-    Column(
-        modifier.fillMaxWidth().padding(vertical = 5.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (resaltada) Papel else Color.White)
-            .border(if (resaltada) 2.dp else 1.dp, if (resaltada) Tinta else Linea, RoundedCornerShape(16.dp))
-            .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = if (eliminado) 12.dp else 8.dp),
+    val forma = RoundedCornerShape(16.dp)
+    Row(
+        modifier.fillMaxWidth().padding(vertical = 4.dp).clip(forma)
+            .background(if (elegida) Papel else Color.White)
+            .border(if (elegida) 2.dp else 1.dp, if (editando) Ambar else if (elegida) Tinta else Linea, forma)
+            .clickable(onClick = alTocar)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Row(verticalAlignment = Alignment.Top) {
-            LetraEstado(estado, Modifier.padding(top = 2.dp))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    titulo, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    style = (if (serif) lugar(19) else sans(17, 700)).let { if (eliminado) it.copy(color = Gris) else it },
-                )
-                lineas.forEach { Text(it, style = sans(13, 400, Gris), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-            }
-            Spacer(Modifier.width(8.dp))
-            Text(codigo, style = sans(13, 700, if (eliminado) Gris else Pin))
+        LetraEstado(estado, Modifier.padding(top = 2.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                titulo, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = (if (serif) lugar(19) else sans(17, 700)).let {
+                    if (eliminado) it.copy(color = Gris, textDecoration = TextDecoration.LineThrough) else it
+                },
+            )
+            lineas.forEach { Text(it, style = sans(13, 400, Gris), maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
-        if (eliminado) {
-            Text("Eliminado (*): solo lectura", style = sans(12, 600, Gris), modifier = Modifier.padding(start = 42.dp, top = 6.dp))
-        } else {
-            Spacer(Modifier.height(8.dp))
-            HorizontalDivider(color = Linea)
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                BotonTarjeta("Modificar", Icons.Default.Edit, Tinta, alModificar)
-                if (estado == Estado.ACTIVO) BotonTarjeta("Inactivar", Icons.Default.Lock, Ambar, alInactivar)
-                else BotonTarjeta("Reactivar", Icons.Default.Refresh, Verde, alReactivar)
-                BotonTarjeta("Eliminar", Icons.Default.Delete, Pin, alEliminar)
+        Spacer(Modifier.width(8.dp))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(codigo, style = sans(13, 700, if (eliminado) Gris else Pin))
+            when {
+                editando -> Text("modificando", style = sans(11, 700, Ambar), modifier = Modifier.padding(top = 4.dp))
+                elegida -> Icon(Icons.Default.CheckCircle, "Elegida", tint = Tinta, modifier = Modifier.padding(top = 4.dp).size(18.dp))
             }
         }
     }
 }
 
-/** Botón pequeño dentro de una tarjeta. */
+/**
+ * Botón de una función del mantenimiento (Adicionar, Modificar, Eliminar...).
+ * Siempre está a la vista; si la función no se puede usar en ese momento se ve apagado.
+ *
+ * @param compacto  ícono sobre el texto (para la fila de 4 acciones sobre el registro elegido)
+ * @param peso      ancho relativo dentro de la fila
+ */
 @Composable
-private fun RowScope.BotonTarjeta(texto: String, icono: ImageVector, color: Color, alTocar: () -> Unit) {
-    TextButton(
-        alTocar, Modifier.weight(1f).height(38.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp),
-        colors = ButtonDefaults.textButtonColors(contentColor = color),
-    ) {
-        Icon(icono, null, tint = color, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(4.dp))
-        Text(texto, style = sans(14, 700, color), maxLines = 1)
+fun RowScope.BotonFuncion(
+    texto: String, icono: ImageVector, habilitado: Boolean,
+    color: Color = Tinta, relleno: Boolean = false, compacto: Boolean = false, peso: Float = 1f,
+    alTocar: () -> Unit,
+) {
+    val forma = RoundedCornerShape(14.dp)
+    val fondo = when {
+        !habilitado -> Papel.copy(alpha = .55f)
+        relleno -> color
+        else -> color.copy(alpha = .08f)
+    }
+    val tinta = when {
+        !habilitado -> Gris.copy(alpha = .45f)
+        relleno -> Color.White
+        else -> color
+    }
+    val base = Modifier.weight(peso).clip(forma).background(fondo)
+        .border(1.dp, if (habilitado && !relleno) color.copy(alpha = .35f) else Color.Transparent, forma)
+        .clickable(enabled = habilitado, role = Role.Button, onClick = alTocar)
+    if (compacto) {
+        Column(
+            base.height(58.dp).padding(horizontal = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(icono, null, tint = tinta, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.height(3.dp))
+            Text(texto, style = sans(13, 700, tinta), maxLines = 1)
+        }
+    } else {
+        Row(
+            base.height(50.dp).padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icono, null, tint = tinta, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(texto, style = sans(15, 700, tinta), maxLines = 1)
+        }
     }
 }
 
@@ -226,9 +261,9 @@ fun ChipEstado(estado: Char) {
 @Composable
 fun CampoTexto(
     etiqueta: String, valor: String, alCambiar: (String) -> Unit, editable: Boolean,
-    error: String? = null, estilo: TextStyle = sans(18, 600),
+    error: String? = null, estilo: TextStyle = sans(18, 600), modifier: Modifier = Modifier,
 ) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    Column(modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Text(etiqueta, style = sans(12, 600, if (error != null) Pin else Gris))
         if (editable) {
             BasicTextField(

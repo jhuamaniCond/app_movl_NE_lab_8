@@ -274,6 +274,7 @@ fun Mapa(
     oscurecido: Boolean = false,
     margenInferior: Dp = 30.dp,
     alTocarPin: ((Publicidad) -> Unit)? = null,
+    elegido: String? = null,   // código del pin que se resalta (el registro cargado en la ficha)
 ) {
     val geo = GeoPeru.de(LocalContext.current)
     val lugares = remember(departamentos, geo) { ubicar(departamentos, geo) }
@@ -417,6 +418,7 @@ fun Mapa(
                         val c = camara.aPantalla(u.ancla)
                         IntOffset((c.x + (u.dx - 15).dp.toPx()).roundToInt(), (c.y + (u.dy - 15).dp.toPx()).roundToInt())
                     }
+                    .then(if (p.codigo == elegido) Modifier.border(2.5.dp, Tinta, CircleShape) else Modifier)
                     .semantics { contentDescription = "Pin ${p.codigo}" },
                 // el clic va en el círculo: así no se recorta la letra del estado de la esquina
                 alTocar = alTocarPin?.let { { it(p) } },

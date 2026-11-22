@@ -6,8 +6,8 @@ import java.util.Locale
 /** Las cuatro tablas del módulo Publicidad. */
 enum class Tabla(
     val sql: String,          // nombre de la tabla en SQLite
-    val prefijo: String,      // prefijo del código (P001, C001, D01, Z01)
-    val digitos: Int,
+    val inicial: String,      // letra del círculo de la tabla en el Inicio (no forma parte del código)
+    val digitos: Int,         // los códigos son solo números: 001 (publicidad, cliente) o 01 (departamento, zona)
     val singular: String,
     val plural: String,
     val pregunta: String,     // título de la consulta de selección
@@ -22,6 +22,8 @@ enum class Tabla(
     val singularTitulo get() = singular.replaceFirstChar { it.uppercase() }
     /** "un cliente" / "una zona" */
     val articuloUn get() = if (femenino) "una" else "un"
+    /** "el cliente" / "la zona" */
+    val articuloEl get() = if (femenino) "la" else "el"
     /** "Nuevo cliente" / "Nueva zona" */
     val nuevoTitulo get() = (if (femenino) "Nueva " else "Nuevo ") + singular
     /** Orden con el que se abre la lista: Clientes por nombre (se busca más por nombre), el resto por código. */
@@ -64,5 +66,5 @@ enum class Orden(val texto: String) { CODIGO("Código"), NOMBRE("Nombre") }
 /** Comparación alfabética en español (Á, É, Ñ ordenan bien; sin distinguir mayúsculas). */
 val alfabetico: Collator = Collator.getInstance(Locale.forLanguageTag("es-PE")).apply { strength = Collator.PRIMARY }
 
-/** Número que va dentro del pin: P007 -> "7". */
+/** Número que va dentro del pin: 007 -> "7". */
 fun numeroDe(codigo: String) = codigo.filter { it.isDigit() }.toIntOrNull()?.toString() ?: codigo
